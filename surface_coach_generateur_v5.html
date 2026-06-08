@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Surface Coach — Générateur de séances</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding: 24px; color: #111; }
+  .app { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+  .orange { color: #ff7350; }
+  .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #aaa; margin-bottom: 14px; }
+  .label { font-size: 13px; color: #555; margin-bottom: 5px; display: block; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .row4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; background: #fafafa; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #ff7350; background: #fff; }
+  textarea { resize: vertical; min-height: 60px; }
+  .age-badge { font-size: 12px; color: #aaa; margin-top: 4px; min-height: 16px; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px; border: 1px solid #ddd; font-size: 13px; cursor: pointer; background: #fff; color: #555; transition: all 0.15s; user-select: none; }
+  .chip.on { background: #fff0ec; border-color: #ff7350; color: #ff7350; font-weight: 500; }
+  .gen-btn { width: 100%; padding: 14px; border-radius: 10px; border: none; background: #000; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 4px; transition: opacity 0.15s; }
+  .gen-btn:hover { opacity: 0.85; }
+  .nutri-preview { margin-top: 14px; padding: 14px; background: #fafafa; border-radius: 10px; border: 1px solid #eee; display: none; }
+  .nutri-preview.visible { display: block; }
+  .nutri-header { font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+  .nutri-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .nutri-item { text-align: center; padding: 10px 4px; background: #fff; border-radius: 8px; border: 1px solid #eee; }
+  .nutri-val { font-size: 20px; font-weight: 700; color: #111; }
+  .nutri-val.orange { color: #ff7350; }
+  .nutri-lbl { font-size: 10px; color: #aaa; margin-top: 2px; }
+  .imc-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; margin-left: 8px; }
+  .imc-normal { background: #e8f5e9; color: #2e7d32; }
+  .imc-surpoids { background: #fff8e1; color: #f57f17; }
+  .imc-obese { background: #ffebee; color: #c62828; }
+  .imc-mince { background: #e3f2fd; color: #1565c0; }
+  .nutri-note { font-size: 11px; color: #aaa; margin-top: 8px; }
+  .info-msg { font-size: 13px; color: #555; margin-top: 10px; padding: 10px 14px; background: #f0f0f0; border-radius: 8px; display: none; }
+  .error-msg { font-size: 13px; color: #c62828; margin-top: 8px; padding: 10px; background: #ffebee; border-radius: 8px; }
+  .result-area { margin-top: 24px; padding: 20px; background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; display: none; }
+  .result-area.visible { display: block; }
+  .result-tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #e8f5e9; color: #2e7d32; margin-bottom: 12px; }
+  .result-text { white-space: pre-wrap; font-size: 14px; line-height: 1.7; }
+  .loading { display: flex; align-items: center; gap: 8px; color: #888; font-size: 14px; margin-top: 12px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; animation: pulse 1.2s ease-in-out infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,80%,100%{opacity:.3} 40%{opacity:1} }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Surface Coach <span class="orange">·</span> Générateur de séances</h1>
+  <p class="subtitle">Renseigne le profil client pour générer une séance personnalisée avec recommandations nutritionnelles.</p>
+
+  <div class="card">
+    <div class="section-title">Profil client</div>
+    <div class="row">
+      <div><span class="label">Prénom</span><input type="text" id="prenom" placeholder="Ex. Thomas" /></div>
+      <div><span class="label">Nom</span><input type="text" id="nom" placeholder="Ex. Dupont" /></div>
+    </div>
+    <div class="row">
+      <div>
+        <span class="label">Date de naissance</span>
+        <input type="date" id="ddn" onchange="calcAge(); calcNutri();" />
+        <div class="age-badge" id="age_badge"></div>
+      </div>
+      <div>
+        <span class="label">Sexe</span>
+        <select id="sexe" onchange="calcNutri()">
+          <option value="">Choisir...</option>
+          <option value="homme">Homme</option>
+          <option value="femme">Femme</option>
+        </select>
+      </div>
+    </div>
+    <div class="row4">
+      <div><span class="label">Taille (cm)</span><input type="number" id="taille" placeholder="178" min="120" max="220" oninput="calcNutri()" /></div>
+      <div><span class="label">Poids (kg)</span><input type="number" id="poids" placeholder="75" min="30" max="250" oninput="calcNutri()" /></div>
+      <div>
+        <span class="label">Niveau</span>
+        <select id="niveau">
+          <option value="">Choisir...</option>
+          <option value="débutant">Débutant</option>
+          <option value="intermédiaire (pratique régulière)">Intermédiaire</option>
+          <option value="avancé (sportif confirmé)">Avancé</option>
+        </select>
+      </div>
+      <div>
+        <span class="label">Objectif</span>
+        <select id="objectif" onchange="calcNutri()">
+          <option value="">Choisir...</option>
+          <option value="perte de poids et tonification">Perte de poids</option>
+          <option value="prise de masse musculaire">Prise de masse</option>
+          <option value="remise en forme générale">Remise en forme</option>
+          <option value="performance sportive">Performance sportive</option>
+          <option value="renforcement musculaire ciblé">Renforcement ciblé</option>
+          <option value="amélioration cardio">Cardio / endurance</option>
+          <option value="mobilité et bien-être">Mobilité & bien-être</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <span class="label">Activité hors séances</span>
+        <select id="activite" onchange="calcNutri()">
+          <option value="">Choisir...</option>
+          <option value="1.2">Sédentaire (bureau, peu de marche)</option>
+          <option value="1.375">Légèrement actif</option>
+          <option value="1.55">Modérément actif</option>
+          <option value="1.725">Très actif (travail physique)</option>
+        </select>
+      </div>
+      <div>
+        <span class="label">Type de séance</span>
+        <select id="type_seance">
+          <option value="">Choisir...</option>
+          <option value="circuit training">Circuit training</option>
+          <option value="fractionné HIIT">HIIT / Fractionné</option>
+          <option value="renforcement musculaire">Renforcement musculaire</option>
+          <option value="cardio-renforcement mixte">Cardio-renforcement mixte</option>
+          <option value="mobilité et gainage">Mobilité & gainage</option>
+          <option value="full body fonctionnel">Full body fonctionnel</option>
+        </select>
+      </div>
+    </div>
+    <div><span class="label">Contre-indications / blessures</span><textarea id="contre" placeholder="Ex. douleurs genou droit, lombalgie chronique..."></textarea></div>
+
+    <div class="nutri-preview" id="nutri_preview">
+      <div class="nutri-header">Apport journalier estimé <span id="imc_badge" class="imc-badge"></span></div>
+      <div class="nutri-grid">
+        <div class="nutri-item"><div class="nutri-val orange" id="n_calories">—</div><div class="nutri-lbl">Calories/jour</div></div>
+        <div class="nutri-item"><div class="nutri-val" id="n_proteines">—</div><div class="nutri-lbl">Protéines (g)</div></div>
+        <div class="nutri-item"><div class="nutri-val" id="n_glucides">—</div><div class="nutri-lbl">Glucides (g)</div></div>
+        <div class="nutri-item"><div class="nutri-val" id="n_lipides">—</div><div class="nutri-lbl">Lipides (g)</div></div>
+      </div>
+      <div class="nutri-note" id="nutri_note"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Résultats bilan forme (optionnel)</div>
+    <div class="row3">
+      <div><span class="label">Squats max (1 min)</span><input type="text" id="squat" placeholder="Ex. 22 reps" /></div>
+      <div><span class="label">Pompes max (1 min)</span><input type="text" id="pompes" placeholder="Ex. 15 reps" /></div>
+      <div><span class="label">Gainage (durée)</span><input type="text" id="gainage" placeholder="Ex. 45s" /></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Matériel à privilégier</div>
+    <div class="chip-group">
+      <div class="chip" data-val="squat barre (rack)">Squat</div>
+      <div class="chip" data-val="développé couché barre (rack)">Développé couché</div>
+      <div class="chip" data-val="leg curl / leg extension (machine)">Leg curl/ext</div>
+      <div class="chip" data-val="TRX">TRX</div>
+      <div class="chip" data-val="haltères 1-20kg">Haltères</div>
+      <div class="chip" data-val="corde ondulatoire">Corde ondulatoire</div>
+      <div class="chip" data-val="poulie (tirage)">Poulie</div>
+      <div class="chip" data-val="kettlebell jusqu'à 20kg">Kettlebell</div>
+      <div class="chip" data-val="escalier BH Fitness">Escalier</div>
+      <div class="chip" data-val="elliptique">Elliptique</div>
+      <div class="chip" data-val="vélo">Vélo</div>
+      <div class="chip" data-val="tapis inclinable">Tapis inclinable</div>
+      <div class="chip" data-val="run-mill BH">Run-mill</div>
+      <div class="chip" data-val="assault bike">Assault bike</div>
+      <div class="chip" data-val="rameur">Rameur</div>
+      <div class="chip" data-val="skierg">Skierg</div>
+    </div>
+  </div>
+
+  <button class="gen-btn" onclick="generer()">Générer la séance ↗</button>
+  <div id="error_area"></div>
+  <div class="info-msg" id="info_area">Paramètres envoyés — génération en cours...</div>
+  <div id="loading_area" style="display:none"><div class="loading"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>Génération en cours...</span></div></div>
+
+  <div class="result-area" id="result_area">
+    <div class="result-tag" id="result_tag"></div>
+    <div class="result-text" id="result_text"></div>
+  </div>
+</div>
+
+<script>
+function calcAge() {
+  const ddn = document.getElementById('ddn').value;
+  const badge = document.getElementById('age_badge');
+  if (!ddn) { badge.textContent = ''; return; }
+  const today = new Date(), birth = new Date(ddn);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  badge.textContent = (age >= 0 && age < 120) ? age + ' ans' : '';
+}
+function getAge() {
+  const ddn = document.getElementById('ddn').value;
+  if (!ddn) return null;
+  const today = new Date(), birth = new Date(ddn);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+function calcNutri() {
+  const poids = parseFloat(document.getElementById('poids').value);
+  const taille = parseFloat(document.getElementById('taille').value);
+  const sexe = document.getElementById('sexe').value;
+  const activite = parseFloat(document.getElementById('activite').value);
+  const objectif = document.getElementById('objectif').value;
+  const age = getAge();
+  const preview = document.getElementById('nutri_preview');
+  if (!poids || !taille || !sexe || !activite || !age) { preview.classList.remove('visible'); return; }
+  let bmr = sexe === 'homme' ? 10*poids + 6.25*taille - 5*age + 5 : 10*poids + 6.25*taille - 5*age - 161;
+  let tdee = Math.round(bmr * activite);
+  let calTarget = tdee, protRatio = 1.8, note = '';
+  if (objectif.includes('perte de poids')) { calTarget = Math.round(tdee*0.85); protRatio = 2.2; note = `Déficit de ${tdee-calTarget} kcal/jour — perte ~0.5 kg/semaine.`; }
+  else if (objectif.includes('prise de masse')) { calTarget = Math.round(tdee*1.10); protRatio = 2.4; note = `Surplus de ${calTarget-tdee} kcal/jour pour favoriser la prise de masse.`; }
+  else if (objectif.includes('performance') || objectif.includes('cardio')) { calTarget = Math.round(tdee*1.05); protRatio = 2.0; note = `Légère augmentation glucides pour soutenir l'effort cardio.`; }
+  else { note = `Apport équilibré adapté à l'objectif.`; }
+  const proteines = Math.round(poids * protRatio);
+  const lipides = Math.round((calTarget * 0.25) / 9);
+  const glucides = Math.round((calTarget - proteines*4 - lipides*9) / 4);
+  const imc = (poids / ((taille/100)**2)).toFixed(1);
+  let imcLabel, imcClass;
+  if (imc < 18.5) { imcLabel = `IMC ${imc} — Insuffisance pondérale`; imcClass = 'imc-mince'; }
+  else if (imc < 25) { imcLabel = `IMC ${imc} — Poids normal`; imcClass = 'imc-normal'; }
+  else if (imc < 30) { imcLabel = `IMC ${imc} — Surpoids`; imcClass = 'imc-surpoids'; }
+  else { imcLabel = `IMC ${imc} — Obésité`; imcClass = 'imc-obese'; }
+  document.getElementById('n_calories').textContent = calTarget.toLocaleString('fr-FR');
+  document.getElementById('n_proteines').textContent = proteines;
+  document.getElementById('n_glucides').textContent = glucides;
+  document.getElementById('n_lipides').textContent = lipides;
+  document.getElementById('imc_badge').textContent = imcLabel;
+  document.getElementById('imc_badge').className = 'imc-badge ' + imcClass;
+  document.getElementById('nutri_note').textContent = note;
+  preview.classList.add('visible');
+}
+document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => c.classList.toggle('on')));
+
+async function generer() {
+  const prenom = document.getElementById('prenom').value.trim();
+  const nom = document.getElementById('nom').value.trim();
+  const ageBadge = document.getElementById('age_badge').textContent;
+  const sexe = document.getElementById('sexe').value;
+  const taille = document.getElementById('taille').value;
+  const poids = document.getElementById('poids').value;
+  const objectif = document.getElementById('objectif').value;
+  const niveau = document.getElementById('niveau').value;
+  const contre = document.getElementById('contre').value.trim();
+  const squat = document.getElementById('squat').value.trim();
+  const pompes = document.getElementById('pompes').value.trim();
+  const gainage = document.getElementById('gainage').value.trim();
+  const type_seance = document.getElementById('type_seance').value;
+  const activite_label = document.getElementById('activite').options[document.getElementById('activite').selectedIndex]?.text || '';
+
+  document.getElementById('error_area').innerHTML = '';
+  if (!objectif || !niveau || !type_seance) {
+    document.getElementById('error_area').innerHTML = '<div class="error-msg">Merci de renseigner au minimum : objectif, niveau et type de séance.</div>';
+    return;
+  }
+
+  const chips = [...document.querySelectorAll('.chip.on')].map(c => c.dataset.val);
+  const materiel = chips.length > 0 ? chips.join(', ') : 'tout le matériel disponible';
+
+  let nutriInfo = '';
+  const p = parseFloat(poids), t = parseFloat(taille), age = getAge(), actCoef = parseFloat(document.getElementById('activite').value);
+  if (p && t && sexe && actCoef && age) {
+    let bmr = sexe === 'homme' ? 10*p+6.25*t-5*age+5 : 10*p+6.25*t-5*age-161;
+    let tdee = Math.round(bmr * actCoef);
+    let calTarget = tdee, protRatio = 1.8;
+    if (objectif.includes('perte de poids')) { calTarget = Math.round(tdee*0.85); protRatio = 2.2; }
+    else if (objectif.includes('prise de masse')) { calTarget = Math.round(tdee*1.10); protRatio = 2.4; }
+    else if (objectif.includes('performance') || objectif.includes('cardio')) { calTarget = Math.round(tdee*1.05); protRatio = 2.0; }
+    const imc = (p/((t/100)**2)).toFixed(1);
+    const proteines = Math.round(p * protRatio);
+    const lipides = Math.round((calTarget * 0.25) / 9);
+    const glucides = Math.round((calTarget - proteines*4 - lipides*9) / 4);
+    nutriInfo = `\nDONNÉES MORPHO & NUTRITION :\n- Taille : ${t} cm | Poids : ${p} kg | IMC : ${imc}\n- Calories cibles : ${calTarget} kcal/jour\n- Protéines : ${proteines}g | Glucides : ${glucides}g | Lipides : ${lipides}g\n- Activité hors séances : ${activite_label}\n`;
+  }
+
+  let prompt = `Génère une séance de coaching sportif complète d'une heure pour ce client Surface Coach.\n\nPROFIL CLIENT :\n`;
+  if (prenom || nom) prompt += `- Nom : ${prenom} ${nom}\n`;
+  if (ageBadge) prompt += `- Âge : ${ageBadge}\n`;
+  if (sexe) prompt += `- Sexe : ${sexe}\n`;
+  if (taille) prompt += `- Taille : ${taille} cm\n`;
+  if (poids) prompt += `- Poids : ${poids} kg\n`;
+  prompt += `- Objectif : ${objectif}\n- Niveau : ${niveau}\n`;
+  if (contre) prompt += `- Contre-indications : ${contre}\n`;
+  prompt += nutriInfo;
+  if (squat || pompes || gainage) {
+    prompt += `\nRÉSULTATS BILAN FORME :\n`;
+    if (squat) prompt += `- Squats max / 1 min : ${squat}\n`;
+    if (pompes) prompt += `- Pompes max / 1 min : ${pompes}\n`;
+    if (gainage) prompt += `- Gainage max : ${gainage}\n`;
+  }
+  prompt += `\nFORMAT : Type de séance : ${type_seance} | Matériel : ${materiel}\nSTRUCTURE (1h) : 1. ÉCHAUFFEMENT 10 min | 2. SÉANCE PRINCIPALE 45 min avec charges précises adaptées au poids et niveau | 3. RETOUR AU CALME 5 min\nAdapte charges au poids corporel. Adapte aux contre-indications. Rédige en français, style programme coach.`;
+
+  document.getElementById('loading_area').style.display = 'block';
+  document.getElementById('result_area').classList.remove('visible');
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] })
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const text = data.content?.map(b => b.text || '').join('') || 'Aucun contenu.';
+    const clientLabel = [prenom, nom].filter(Boolean).join(' ');
+    document.getElementById('result_tag').textContent = `${clientLabel ? clientLabel + ' · ' : ''}${objectif} · ${niveau}`;
+    document.getElementById('result_text').textContent = text;
+    document.getElementById('result_area').classList.add('visible');
+  } catch(e) {
+    document.getElementById('error_area').innerHTML = `<div class="error-msg">Erreur : ${e.message}</div>`;
+  } finally {
+    document.getElementById('loading_area').style.display = 'none';
+  }
+}
+</script>
+</body>
+</html>
